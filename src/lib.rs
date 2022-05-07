@@ -106,6 +106,23 @@ pub fn reverse_proxy_filter(
         .boxed()
 }
 
+#[allow(clippy::needless_lifetimes)]
+pub fn reverse_proxy_filter_use_client<'a>(
+    base_path: String,
+    proxy_address: String,
+    client: &'a reqwest::Client,
+) -> impl Filter<Extract = (http::Response<Bytes>,), Error = Rejection> + Clone + 'a {
+    let proxy_address = warp::any().map(move || proxy_address.clone());
+    let base_path = warp::any().map(move || base_path.clone());
+    let data_filter = extract_request_data_filter();
+
+    proxy_address
+        .and(base_path)
+        .and(data_filter)
+        .and(with_client(client))
+        .and_then(proxy_to_and_forward_response_use_client)
+}
+
 /// Warp filter that extracts query parameters from the request, if they exist.
 pub fn query_params_filter(
 ) -> impl Filter<Extract = (QueryParameters,), Error = std::convert::Infallible> + Clone {
